@@ -31,15 +31,6 @@ struct vertex_buffer {
 
     ~vertex_buffer() { gl::glDeleteBuffers(1, &vbo); }
 
-    void bind_attribute(gl::GLuint attrib, gl::GLuint bind_slot, gl::GLuint divisor) const
-    {
-        gl::glBindVertexBuffer(bind_slot, vbo, 0, sizeof(buffer_t));
-        gl::glEnableVertexAttribArray(attrib);
-        gl::glVertexAttribFormat(attrib, buffer_t::length(), gl::GL_FLOAT, gl::GL_FALSE, 0);
-        gl::glVertexBindingDivisor(bind_slot, divisor);
-        gl::glVertexAttribBinding(attrib, bind_slot);
-    }
-
     vertex_buffer() = default;
     vertex_buffer(vertex_buffer const&) = delete;
     vertex_buffer& operator=(vertex_buffer const&) = delete;

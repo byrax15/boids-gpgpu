@@ -40,11 +40,14 @@ private:
 };
 
 opengl::opengl()
-    : window(sf::Window { sf::VideoMode(1920, 1080), "Boids", sf::Style::Default, std::invoke([] {
-                             sf::ContextSettings settings;
-                             settings.majorVersion = 4;
-                             settings.minorVersion = 6;
-                             return settings;
+    : window(sf::Window { sf::VideoMode(1920, 1080, 32), "Boids", sf::Style::Default, std::invoke([] {
+                             using ctx_attrib = sf::ContextSettings::Attribute;
+#ifdef NDEBUG
+                             const auto flags = ctx_attrib::Core;
+#else
+                             const auto flags = ctx_attrib::Core | ctx_attrib::Debug;
+#endif
+                             return sf::ContextSettings(24, 8, 2, 4, 6, flags);
                          }) })
 {
     window.setActive();
@@ -93,7 +96,6 @@ void opengl::render_loop(auto&& callable) const
     while (window.isOpen()) {
         handle_events();
         window.display();
-        gl::glClear(gl::GL_COLOR_BUFFER_BIT);
         callable();
     }
 }
