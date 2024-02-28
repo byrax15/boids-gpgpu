@@ -52,9 +52,7 @@ int main()
             glm::lookAt(glm::vec3 { 0.f, 0.f, 3.f }, glm::vec3 { 0.f, 0.f, 0.f }, glm::vec3 { 0.f, 1.f, 0.f }),
             glm::perspective(glm::radians(45.f), gl_window.window_aspect(), .1f, 100.f)
         };
-        const auto buf_camera = vertex_buffer {
-            gl_window, std::span { camera }
-        };
+        const auto buf_camera = vertex_buffer { gl_window, std::span{ camera } };
         glBindBufferBase(GL_UNIFORM_BUFFER, 0, buf_camera);
 
         const auto buf_mask_color = vertex_buffer { gl_window, glm::vec3 { 1, 0, 0 } };

@@ -60,8 +60,8 @@ private:
     gl::GLuint vbo = 0;
 };
 
-export template <typename TContained, size_t Extent>
-vertex_buffer(opengl const&, std::span<TContained, Extent>) -> vertex_buffer<std::remove_cvref_t<TContained>>;
-
 template <typename TContained>
 vertex_buffer(opengl const&, TContained&&) -> vertex_buffer<std::remove_cvref_t<TContained>>;
+
+export template <typename TContained, size_t Extent>
+vertex_buffer(opengl const&, std::span<TContained, Extent>) -> vertex_buffer<std::remove_cvref_t<TContained>>;
