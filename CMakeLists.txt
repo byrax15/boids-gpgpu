@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-
 include(FetchContent)
 # Automatically download cmake-spirv with FetchContent
 FetchContent_Declare(cmake-spirv
@@ -19,7 +18,8 @@ list(APPEND CMAKE_MODULE_PATH ${cmake-spirv_SOURCE_DIR}/include)
 include(AddSpirvModules)
 
 
-find_package(glfw3      CONFIG REQUIRED)
+#find_package(glfw3      CONFIG REQUIRED)
+find_package(SFML       CONFIG REQUIRED COMPONENTS window)
 find_package(glbinding  CONFIG REQUIRED)
 find_package(glm        CONFIG REQUIRED)
 
@@ -30,21 +30,20 @@ add_spirv_modules(boids-shaders
         OPTIONS     "--target-env=opengl"
 )
 
-add_executable(boids-gpgpu main.cpp )
+add_executable(boids-gpgpu main.cpp)
 target_sources(boids-gpgpu PRIVATE
         FILE_SET all_modules TYPE CXX_MODULES 
         FILES 
-        contexts.ixx 
-        shader_program.ixx
-        vertex_buffer.ixx
- "vertex_array.ixx")
-target_compile_options(boids-gpgpu PRIVATE
-        $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
-        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
+        "contexts.ixx"
+        "shader_program.ixx"
+        "vertex_buffer.ixx"
+        "vertex_array.ixx"
 )
+set_target_properties(boids-gpgpu PROPERTIES COMPILE_WARNING_AS_ERROR ON)
 add_dependencies(boids-gpgpu boids-shaders)
 target_link_libraries(boids-gpgpu PRIVATE
-        glfw
+        #glfw
+        sfml-window
         glbinding::glbinding glbinding::glbinding-aux
         glm::glm
 )

@@ -1,6 +1,5 @@
 module;
 #include <glbinding/gl46core/gl.h>
-#include <optional>
 #include <span>
 #include <type_traits>
 export module vertex_buffer;
@@ -16,6 +15,12 @@ struct vertex_buffer {
         gl::glCreateBuffers(1, &vbo);
     }
 
+    vertex_buffer(opengl const& context, TContained&& data)
+        : vertex_buffer(context)
+    {
+        gl::glNamedBufferStorage(vbo, sizeof(TContained), &data, gl::GL_DYNAMIC_STORAGE_BIT);
+    }
+
     template <typename UContained, size_t Extent>
     vertex_buffer(opengl const& context, std::span<UContained, Extent> data)
         : vertex_buffer(context)
@@ -25,6 +30,15 @@ struct vertex_buffer {
     }
 
     ~vertex_buffer() { gl::glDeleteBuffers(1, &vbo); }
+
+    void bind_attribute(gl::GLuint attrib, gl::GLuint bind_slot, gl::GLuint divisor) const
+    {
+        gl::glBindVertexBuffer(bind_slot, vbo, 0, sizeof(buffer_t));
+        gl::glEnableVertexAttribArray(attrib);
+        gl::glVertexAttribFormat(attrib, buffer_t::length(), gl::GL_FLOAT, gl::GL_FALSE, 0);
+        gl::glVertexBindingDivisor(bind_slot, divisor);
+        gl::glVertexAttribBinding(attrib, bind_slot);
+    }
 
     vertex_buffer() = default;
     vertex_buffer(vertex_buffer const&) = delete;
@@ -43,9 +57,11 @@ struct vertex_buffer {
     operator gl::GLuint() const { return vbo; }
 
 private:
-    gl::GLuint vbo
-        = 0;
+    gl::GLuint vbo = 0;
 };
 
 export template <typename TContained, size_t Extent>
 vertex_buffer(opengl const&, std::span<TContained, Extent>) -> vertex_buffer<std::remove_cvref_t<TContained>>;
+
+template <typename TContained>
+vertex_buffer(opengl const&, TContained&&) -> vertex_buffer<std::remove_cvref_t<TContained>>;

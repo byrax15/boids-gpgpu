@@ -5,7 +5,7 @@ module;
 #include <glbinding/gl46core/gl.h>
 #include <glbinding/glbinding.h>
 
-#include <GLFW/glfw3.h>
+#include <SFML/Window.hpp>
 
 #include <format>
 #include <stdexcept>
@@ -20,69 +20,80 @@ public:
 
     opengl& operator=(opengl const&) = delete;
 
-    ~opengl()
-    {
-        glfwDestroyWindow(window);
-        glfwTerminate();
-    }
-
-    [[nodiscard]]
-    operator GLFWwindow*() const { return window; }
-
     [[nodiscard]] static auto const& instance()
     {
         static opengl instance;
         return instance;
     }
 
-    void render_loop(auto const& callable) const
+    auto window_aspect() const
     {
-        while (!glfwWindowShouldClose(window)) {
-            glfwPollEvents();
-            callable();
-            glfwSwapBuffers(window);
-        }
+        const auto [w, h] = window.getSize();
+        return static_cast<float>(w) / static_cast<float>(h);
     }
 
+    void handle_events() const;
+    void render_loop(auto&& callable) const;
+
 private:
-    int width = 640, height = 480;
-    GLFWwindow* window;
+    mutable sf::Window window;
 };
 
-inline opengl::opengl()
+opengl::opengl()
+    : window(sf::Window { sf::VideoMode(1920, 1080), "Boids", sf::Style::Default, std::invoke([] {
+                             sf::ContextSettings settings;
+                             settings.majorVersion = 4;
+                             settings.minorVersion = 6;
+                             return settings;
+                         }) })
 {
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, false);
+    window.setActive();
+    glbinding::initialize(sf::Context::getFunction);
 
-    window = glfwCreateWindow(width, height, "Boids", nullptr, nullptr);
-    glfwMakeContextCurrent(window);
-    glbinding::initialize(glfwGetProcAddress);
-
-    glfwSetKeyCallback(window, [](GLFWwindow* w, int key, int, int, int) {
-        switch (key) {
-        case GLFW_KEY_ESCAPE:
-            glfwSetWindowShouldClose(w, true);
-            break;
-        default:
-            break;
-        }
-    });
-
+#ifndef NDEBUG
     gl::glEnable(gl::GL_DEBUG_OUTPUT);
     gl::glDebugMessageCallback(
         [](gl::GLenum source, gl::GLenum type, gl::GLuint id, gl::GLenum severity, gl::GLsizei, const gl::GLchar* message, const void*) {
             if (type != gl::GLenum::GL_DEBUG_TYPE_ERROR)
                 return;
             throw std::runtime_error(std::format(R"(GL ERROR::
-    source:     {:x}
-    type:       {:x}
-    id:         {:x}
-    severity:   {:x}
+    source:     0x{:x}
+    type:       0x{:x}
+    id:         0x{:x}
+    severity:   0x{:x}
     message:    {:s})",
                 (uint32_t)source, (uint32_t)type, (uint32_t)id, (uint32_t)severity, message));
         },
         nullptr);
+
+#endif
+}
+
+void opengl::handle_events() const
+{
+    sf::Event event;
+    while (window.pollEvent(event)) {
+        switch (event.type) {
+        case sf::Event::Resized:
+            const auto [w, h] = event.size;
+            gl::glViewport(0, 0, w, h);
+            break;
+        case sf::Event::KeyPressed:
+            if (event.key.code == sf::Keyboard::Escape)
+                window.close();
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+void opengl::render_loop(auto&& callable) const
+{
+    while (window.isOpen()) {
+        handle_events();
+        window.display();
+        gl::glClear(gl::GL_COLOR_BUFFER_BIT);
+        callable();
+    }
 }
