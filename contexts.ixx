@@ -50,6 +50,7 @@ opengl::opengl()
                              return sf::ContextSettings(24, 8, 2, 4, 6, flags);
                          }) })
 {
+    window.setVerticalSyncEnabled(true);
     window.setActive();
     glbinding::initialize(sf::Context::getFunction);
 

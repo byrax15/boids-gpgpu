@@ -6,49 +6,77 @@ export module vertex_buffer;
 
 import contexts;
 
+template <typename T>
+struct mapped_buffer : std::span<T> {
+
+    mapped_buffer(gl::GLuint vbo, gl::GLuint size)
+        : std::span<T> { (T*)gl::glMapNamedBuffer(vbo, gl::GL_READ_WRITE), size }
+        , vbo(vbo)
+    {
+    }
+    ~mapped_buffer() { gl::glUnmapNamedBuffer(vbo); }
+
+    mapped_buffer(mapped_buffer const&) = delete;
+    mapped_buffer& operator=(mapped_buffer const&) = delete;
+    mapped_buffer(mapped_buffer&& old) noexcept
+    {
+        vbo = old.vbo;
+        old.vbo = 0;
+    }
+    mapped_buffer& operator=(mapped_buffer&& old) noexcept
+    {
+        vbo = old.vbo;
+        old.vbo = 0;
+    }
+
+private:
+    gl::GLuint vbo;
+};
+
 export template <typename TContained>
 struct vertex_buffer {
     using buffer_t = TContained;
+    
+    static constexpr auto buffer_t_sizeof() { return sizeof buffer_t; }
 
-    vertex_buffer(opengl const&)
+    vertex_buffer(opengl const&, gl::GLuint size)
+        : m_size(size)
     {
-        gl::glCreateBuffers(1, &vbo);
-    }
-
-    vertex_buffer(opengl const& context, TContained&& data)
-        : vertex_buffer(context)
-    {
-        gl::glNamedBufferStorage(vbo, sizeof(TContained), &data, gl::GL_DYNAMIC_STORAGE_BIT);
+        gl::glCreateBuffers(1, &m_vbo);
     }
 
     template <typename UContained, size_t Extent>
     vertex_buffer(opengl const& context, std::span<UContained, Extent> data)
-        : vertex_buffer(context)
+        : vertex_buffer(context, data.size())
     {
         static_assert(std::is_same_v<TContained, std::remove_cvref_t<UContained>>);
-        gl::glNamedBufferStorage(vbo, data.size_bytes(), data.data(), gl::GL_DYNAMIC_STORAGE_BIT);
+        gl::glNamedBufferStorage(m_vbo, data.size_bytes(), data.data(), gl::GL_DYNAMIC_STORAGE_BIT);
     }
 
-    ~vertex_buffer() { gl::glDeleteBuffers(1, &vbo); }
+    ~vertex_buffer() { gl::glDeleteBuffers(1, &m_vbo); }
 
     vertex_buffer() = default;
     vertex_buffer(vertex_buffer const&) = delete;
     vertex_buffer& operator=(vertex_buffer const&) = delete;
     vertex_buffer(vertex_buffer&& moved_from) noexcept
     {
-        vbo = moved_from.vbo;
-        moved_from.vbo = 0;
+        m_vbo = moved_from.m_vbo;
+        moved_from.m_vbo = 0;
     }
     vertex_buffer& operator=(vertex_buffer&& moved_from)
     {
-        vbo = moved_from.vbo;
-        moved_from.vbo = 0;
+        m_vbo = moved_from.m_vbo;
+        moved_from.m_vbo = 0;
     }
 
-    operator gl::GLuint() const { return vbo; }
+    auto map_buffer() const { return mapped_buffer<buffer_t> { m_vbo, m_size }; }
+
+    operator gl::GLuint() const { return m_vbo; }
+    auto size() const { return m_size; }
 
 private:
-    gl::GLuint vbo = 0;
+    gl::GLuint m_vbo = 0;
+    gl::GLuint m_size = 0;
 };
 
 template <typename TContained>
