@@ -6,10 +6,7 @@ layout(location = 1) out vec3 fPosition;
 layout(location = 0) in vec3 iColor;
 layout(location = 1) in vec3 vPosition;
 
-layout(std140, binding = 0) uniform uCamera {
-    mat4 view;
-    mat4 proj;
-};
+#include "uCamera.h"
 
 layout(std430, binding=0) buffer readonly sPositions {
 	vec4 positions[];

@@ -26,7 +26,9 @@ find_package(glm        CONFIG REQUIRED)
 add_spirv_modules(boids-shaders
         SOURCE_DIR  shaders
         BINARY_DIR  shaders
-        SOURCES     shader.vert shader.frag move.comp
+        SOURCES     shader.vert shader.frag 
+                    debug.vert debug.frag
+                    move.comp 
         OPTIONS     "--target-env=opengl"
 )
 

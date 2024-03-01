@@ -47,19 +47,19 @@ constexpr std::array iColors {
 
 constexpr vec4 scene_size { 10, 10, 10, 0 };
 constexpr std::array scene_walls {
-    vec4 { scene_size.x / 2, 0, 0, 0 },
-    vec4 { -scene_size.x / 2, 0, 0, 0 },
-    vec4 { 0, scene_size.y / 2, 0, 0 },
-    vec4 { 0, -scene_size.y / 2, 0, 0 },
-    vec4 { 0, 0, scene_size.z / 2, 0 },
-    vec4 { 0, 0, -scene_size.z / 2, 0 },
+    vec4 { scene_size.x / 2.f, 0, 0, 1 },
+    vec4 { -scene_size.x / 2.f, 0, 0, 1 },
+    vec4 { 0, scene_size.y / 2.f, 0, 1 },
+    vec4 { 0, -scene_size.y / 2.f, 0, 1 },
+    vec4 { 0, 0, scene_size.z / 2.f, 1 },
+    vec4 { 0, 0, -scene_size.z / 2.f, 15 },
 };
 
-constexpr std::array attribute_formats {
+constexpr std::array boids_attribute_formats {
     vertex_attrib_format { 0, 0, 1, decltype(iColors)::value_type::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
     vertex_attrib_format { 1, 1, 0, decltype(boid)::value_type::value_type::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
 };
-const auto& [format_color, format_boid] = attribute_formats;
+const auto& [format_color, format_boid] = boids_attribute_formats;
 
 int main()
 {
@@ -74,22 +74,30 @@ int main()
                 shader_builder { "shaders/shader.frag.spv", GL_FRAGMENT_SHADER },
             }
         };
-
         const auto move_prog = shader_program {
             gl_window,
             {
                 shader_builder { "shaders/move.comp.spv", gl::GL_COMPUTE_SHADER },
             }
         };
+        const auto debug_prog = shader_program {
+            gl_window,
+            {
+                shader_builder { "shaders/debug.vert.spv", GL_VERTEX_SHADER },
+                shader_builder { "shaders/debug.frag.spv", GL_FRAGMENT_SHADER },
+            }
+        };
 
-        const auto vao = vertex_array { gl_window };
-        vao.format_attrib(std::span { attribute_formats });
+        const auto vao_boids = vertex_array { gl_window };
+        vao_boids.format_attrib(std::span { boids_attribute_formats });
+
+        const auto vao_walls = vertex_array { gl_window };
 
         const auto buf_colors = vertex_buffer { gl_window, std::span { iColors } };
-        glVertexArrayVertexBuffer(vao, format_color.binding_id, buf_colors, 0, sizeof(decltype(buf_colors)::buffer_t));
+        glVertexArrayVertexBuffer(vao_boids, format_color.binding_id, buf_colors, 0, sizeof(decltype(buf_colors)::buffer_t));
 
         const auto buf_boid = vertex_buffer { gl_window, std::span { &boid[0][0], boid.size() * std::tuple_size<decltype(boid)::value_type>::value } };
-        glVertexArrayVertexBuffer(vao, format_boid.binding_id, buf_boid, 0, sizeof(decltype(buf_boid)::buffer_t));
+        glVertexArrayVertexBuffer(vao_boids, format_boid.binding_id, buf_boid, 0, sizeof(decltype(buf_boid)::buffer_t));
 
         const auto buf_positions = vertex_buffer { gl_window, std::span { positions } };
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf_positions);
@@ -99,11 +107,6 @@ int main()
 
         const auto buf_camera = vertex_buffer { gl_window, std::span { (glm::mat4*)nullptr, 2 } };
         glBindBufferBase(GL_UNIFORM_BUFFER, 0, buf_camera);
-        //{
-        //    using view_t = decltype(buf_camera)::buffer_t;
-        //    const auto next_view = glm::lookAt(vec3 { 0, 0, 5.f }, glm::vec3 { 0.f, 0.f, 0.f }, glm::vec3 { 0.f, 1.f, 0.f });
-        //    glNamedBufferSubData(buf_camera, 0, sizeof(view_t), &next_view[0][0]);
-        //}
 
         const auto buf_time = vertex_buffer { gl_window, std::span { (float*)nullptr, 1 } };
         glBindBufferBase(GL_UNIFORM_BUFFER, 1, buf_camera);
@@ -119,9 +122,9 @@ int main()
             glNamedBufferSubData(buf_time, 0, buf_time.buffer_t_sizeof(), &now);
 
             using view_t = decltype(buf_camera)::buffer_t;
-            //const vec3 view_point = glm::rotate(glm::mat4 { 1 }, 4 * std::sinf(.5f * now), vec3 { 0.f, 1.f, 0.f })
-            //    * glm::vec4 { 0.f, 0.f, 5.f, 1.f };
-            const auto next_view = glm::lookAt(vec3(0,0,20), glm::vec3 { 0.f, 0.f, 0.f }, glm::vec3 { 0.f, 1.f, 0.f });
+            // const vec3 view_point = glm::rotate(glm::mat4 { 1 }, 4 * std::sinf(.5f * now), vec3 { 0.f, 1.f, 0.f })
+            //     * glm::vec4 { 0.f, 0.f, 5.f, 1.f };
+            const auto next_view = glm::lookAt(vec3(0, 3, 10), glm::vec3 { 0.f, 0.f, 0.f }, glm::vec3 { 0.f, 1.f, 0.f });
             glNamedBufferSubData(buf_camera, 0, sizeof(view_t), &next_view[0][0]);
 
             using proj_t = decltype(buf_camera)::buffer_t;
@@ -134,8 +137,12 @@ int main()
             glDispatchCompute(buf_positions.size(), 1, 1);
 
             glUseProgram(triangle);
-            glBindVertexArray(vao);
+            glBindVertexArray(vao_boids);
             glDrawArraysInstanced(GL_TRIANGLES, 0, buf_boid.size(), buf_positions.size());
+
+            glUseProgram(debug_prog);
+            glBindVertexArray(vao_walls);
+            glDrawArrays(GL_LINE_LOOP, 0, buf_walls.size());
         });
     } catch (std::exception const& e) {
         std::cout << e.what() << "\n";
