@@ -35,9 +35,9 @@ constexpr std::array positions {
     vec4 { 0, 0, 0, 0 },
 };
 constexpr std::array velocities {
-    vec4 { -.01, 0, 0, 0 },
-    vec4 { .01, 0, 0, 0 },
-    vec4 { 0, .01, 0, 0 },
+    vec4 { -.1, 0, 0, 0 },
+    vec4 { .1, 0, 0, 0 },
+    vec4 { 0, .1, 0, 0 },
 };
 constexpr std::array iColors {
     vec3 { 1, 0, 0 },
@@ -52,7 +52,7 @@ constexpr std::array scene_walls {
     vec4 { 0, scene_size.y / 2.f, 0, 1 },
     vec4 { 0, -scene_size.y / 2.f, 0, 1 },
     vec4 { 0, 0, scene_size.z / 2.f, 1 },
-    vec4 { 0, 0, -scene_size.z / 2.f, 15 },
+    vec4 { 0, 0, -scene_size.z / 2.f, 1 },
 };
 
 constexpr std::array boids_attribute_formats {
@@ -122,9 +122,9 @@ int main()
             glNamedBufferSubData(buf_time, 0, buf_time.buffer_t_sizeof(), &now);
 
             using view_t = decltype(buf_camera)::buffer_t;
-            // const vec3 view_point = glm::rotate(glm::mat4 { 1 }, 4 * std::sinf(.5f * now), vec3 { 0.f, 1.f, 0.f })
-            //     * glm::vec4 { 0.f, 0.f, 5.f, 1.f };
-            const auto next_view = glm::lookAt(vec3(0, 3, 10), glm::vec3 { 0.f, 0.f, 0.f }, glm::vec3 { 0.f, 1.f, 0.f });
+            const vec3 view_point = glm::rotate(glm::mat4 { 1 }, 4 * std::sinf(.2f * now), vec3 { 0.f, 1.f, 0.f })
+                * vec4(0, 8, 10, 1);
+            const auto next_view = glm::lookAt(view_point, glm::vec3 { 0.f, 0.f, 0.f }, glm::vec3 { 0.f, 1.f, 0.f });
             glNamedBufferSubData(buf_camera, 0, sizeof(view_t), &next_view[0][0]);
 
             using proj_t = decltype(buf_camera)::buffer_t;

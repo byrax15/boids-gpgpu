@@ -14,8 +14,9 @@ layout(std430, binding=1) buffer sVelocities {
 #include "uSceneWalls.h"
 
 void main() {
-//	for (int i = 0; i  < walls.length(); ++i) {
-//		velocities[gl_GlobalInvocationID.x] += 1/(positions[gl_GlobalInvocationID.x] - walls[i]);
-//	}
+	for (int i = 0; i  < walls.length(); ++i) {
+		const float dist = dot(-walls[i],walls[i]-positions[gl_GlobalInvocationID.x])/length(-walls[i]);
+		velocities[gl_GlobalInvocationID.x] += normalize(-walls[i]) / abs(dist);
+	}
 	positions[gl_GlobalInvocationID.x] += velocities[gl_GlobalInvocationID.x];
 }
