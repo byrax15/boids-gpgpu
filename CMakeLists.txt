@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 project(boids-gpgpu)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -27,7 +27,8 @@ add_spirv_modules(boids-shaders
         SOURCE_DIR  shaders
         BINARY_DIR  shaders
         SOURCES     shader.vert shader.frag 
-                    debug.vert debug.frag
+                    debug_velocities.vert
+                    debug_color.frag
                     move.comp 
         OPTIONS     "--target-env=opengl"
 )
@@ -40,7 +41,7 @@ target_sources(boids-gpgpu PRIVATE
         "shader_program.ixx"
         "vertex_buffer.ixx"
         "vertex_array.ixx"
-)
+  )
 set_target_properties(boids-gpgpu PROPERTIES COMPILE_WARNING_AS_ERROR ON)
 add_dependencies(boids-gpgpu boids-shaders)
 target_link_libraries(boids-gpgpu PRIVATE

@@ -33,7 +33,7 @@ public:
     }
 
     void handle_events() const;
-    void render_loop(auto&& callable) const;
+    auto operator->() const { return &window; }
 
 private:
     mutable sf::Window window;
@@ -89,14 +89,5 @@ void opengl::handle_events() const
         default:
             break;
         }
-    }
-}
-
-void opengl::render_loop(auto&& callable) const
-{
-    while (window.isOpen()) {
-        handle_events();
-        window.display();
-        callable();
     }
 }

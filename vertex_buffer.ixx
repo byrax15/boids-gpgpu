@@ -50,7 +50,7 @@ struct vertex_buffer {
         : vertex_buffer(context, data.size())
     {
         static_assert(std::is_same_v<TContained, std::remove_cvref_t<UContained>>);
-        gl::glNamedBufferStorage(m_vbo, data.size_bytes(), data.data(), gl::GL_DYNAMIC_STORAGE_BIT);
+        gl::glNamedBufferData(m_vbo, data.size_bytes(), data.data(), gl::GL_STATIC_DRAW);
     }
 
     ~vertex_buffer() { gl::glDeleteBuffers(1, &m_vbo); }
