@@ -36,7 +36,7 @@ private:
 export template <typename TContained>
 struct vertex_buffer {
     using buffer_t = TContained;
-    
+
     static constexpr auto buffer_t_sizeof() { return sizeof buffer_t; }
 
     vertex_buffer(opengl const&, gl::GLuint size)
@@ -73,6 +73,7 @@ struct vertex_buffer {
 
     operator gl::GLuint() const { return m_vbo; }
     auto size() const { return m_size; }
+    auto size_bytes() const { return m_size * sizeof(buffer_t); }
 
 private:
     gl::GLuint m_vbo = 0;

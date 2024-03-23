@@ -32,7 +32,6 @@ public:
         return static_cast<float>(w) / static_cast<float>(h);
     }
 
-    void handle_events() const;
     auto operator->() const { return &window; }
 
 private:
@@ -73,21 +72,3 @@ opengl::opengl()
 #endif
 }
 
-void opengl::handle_events() const
-{
-    sf::Event event;
-    while (window.pollEvent(event)) {
-        switch (event.type) {
-        case sf::Event::Resized:
-            const auto [w, h] = event.size;
-            gl::glViewport(0, 0, w, h);
-            break;
-        case sf::Event::KeyPressed:
-            if (event.key.code == sf::Keyboard::Escape)
-                window.close();
-            break;
-        default:
-            break;
-        }
-    }
-}

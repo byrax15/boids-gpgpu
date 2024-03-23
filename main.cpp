@@ -91,7 +91,7 @@ int main()
 
         const auto buf_velocities = vertex_buffer { gl_window, std::span { (glm::vec4*)nullptr, nBoids } };
         std::ranges::for_each(buf_velocities.map_buffer(), [](auto& v) {
-            v = glm::linearRand(vec4 { -1, -1, -1, 0 }, vec4 { 1, 1, 1, 0 });
+            v = glm::linearRand(.1f * vec4 { -1, -1, -1, 0 }, .1f * vec4 { 1, 1, 1, 0 });
         });
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf_velocities);
 
@@ -113,19 +113,12 @@ int main()
         glPointSize(10.f);
         glLineWidth(5.f);
 
-        chr::duration<float> frame_start, frame_end;
+        chr::duration<float> frame_start, frame_end = chr::steady_clock::now().time_since_epoch();
         while (gl_window->isOpen()) {
-            gl_window->display();
-            gl_window.handle_events();
-
-            const auto deltaTime = frame_end - frame_start;
-            if (const auto sleepTime = chr::duration<float>(1.f / 60.f) - deltaTime; sleepTime < chr::duration<float>::zero()) {
-                std::this_thread::sleep_for(deltaTime);
-            }
-
-            frame_start = chr::duration<float> { chr::steady_clock::now().time_since_epoch() };
-            const auto deltaTimeCount = (frame_start - frame_end).count();
-            glNamedBufferSubData(buf_time, 0, buf_time.buffer_t_sizeof(), &deltaTimeCount);
+            frame_start = chr::steady_clock::now().time_since_epoch();
+            const auto deltaTime = (frame_start - frame_end).count();
+            glNamedBufferSubData(buf_time, 0, buf_time.size_bytes(), &deltaTime);
+            frame_end = frame_start;
 
             using view_t = decltype(buf_camera)::buffer_t;
             // const vec3 view_point = glm::rotate(glm::mat4 { 1 }, 4 * std::sinf(.2f * now), vec3 { 0.f, 1.f, 0.f })
@@ -155,7 +148,24 @@ int main()
             glUseProgram(debug_velocities_prog);
             glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());
 
-            frame_end = chr::duration<float> { chr::steady_clock::now().time_since_epoch() };
+            gl_window->display();
+
+            sf::Event event;
+            while (gl_window->pollEvent(event)) {
+                switch (event.type) {
+                case sf::Event::Resized:
+                    const auto [w, h] = event.size;
+                    gl::glViewport(0, 0, w, h);
+                    break;
+                case sf::Event::KeyPressed:
+                    if (event.key.code == sf::Keyboard::Escape)
+                        gl_window->close();
+                    break;
+                default:
+                    break;
+                }
+            }
+
         }
     } catch (std::exception const& e) {
         std::cout << e.what() << "\n";
