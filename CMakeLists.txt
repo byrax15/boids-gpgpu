@@ -18,10 +18,11 @@ list(APPEND CMAKE_MODULE_PATH ${cmake-spirv_SOURCE_DIR}/include)
 include(AddSpirvModules)
 
 
-#find_package(glfw3      CONFIG REQUIRED)
-find_package(SFML       CONFIG REQUIRED COMPONENTS window)
 find_package(glbinding  CONFIG REQUIRED)
 find_package(glm        CONFIG REQUIRED)
+find_package(glfw3      CONFIG REQUIRED)
+find_package(imgui      CONFIG REQUIRED)
+find_package(imguizmo   CONFIG REQUIRED)
 
 add_spirv_modules(boids-shaders
         SOURCE_DIR  shaders
@@ -45,8 +46,9 @@ target_sources(boids-gpgpu PRIVATE
 set_target_properties(boids-gpgpu PROPERTIES COMPILE_WARNING_AS_ERROR ON)
 add_dependencies(boids-gpgpu boids-shaders)
 target_link_libraries(boids-gpgpu PRIVATE
-        #glfw
-        sfml-window
         glbinding::glbinding glbinding::glbinding-aux
         glm::glm
+        glfw
+        imgui::imgui
+        imguizmo::imguizmo
 )
