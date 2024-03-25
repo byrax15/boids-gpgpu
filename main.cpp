@@ -53,44 +53,60 @@ constexpr std::array boids_attribute_formats {
 const auto& [format_color, format_boid] = boids_attribute_formats;
 
 struct sim_state {
-    bool pause {};
-    float lat = 0, lon = 0;
-    float cam_speed = 3.14;
+    bool pause = false;
     float deltaTime = 0;
-} sim_state;
+} sim;
+
+struct camera {
+    float azimuth {}, polar {}, zoom = 20.f;
+    float speed = 1.f;
+
+    glm::vec3 focus {};
+
+    auto eye() const
+    {
+        return focus + zoom * glm::vec3 {
+            cosf(polar) * cosf(azimuth),
+            sinf(polar),
+            cosf(polar) * sinf(azimuth),
+        };
+    }
+
+    auto view() const
+    {
+        return glm::lookAt(eye(), focus, vec3(0, 1, 0));
+    }
+
+} camera;
 
 int main()
 {
     using namespace gl;
     try {
         const auto& gl_window = opengl::instance();
-        std::tuple user_data_ptrs { &gl_window, &sim_state };
-        glfwSetWindowUserPointer(*gl_window, &user_data_ptrs);
         glfwSetKeyCallback(*gl_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-            const auto& [gl_win, sim] = *reinterpret_cast<decltype(&user_data_ptrs)>(glfwGetWindowUserPointer(window));
             if (action == GLFW_PRESS) {
                 switch (key) {
                 case GLFW_KEY_ESCAPE:
                     glfwSetWindowShouldClose(window, true);
                     break;
                 case GLFW_KEY_P:
-                    sim->pause = !sim->pause;
+                    sim.pause = !sim.pause;
                     break;
                 }
             }
-
             switch (key) {
             case GLFW_KEY_LEFT:
-                sim->lon -= sim->cam_speed;
+                camera.azimuth -= camera.speed * sim.deltaTime;
                 break;
             case GLFW_KEY_RIGHT:
-                sim->lon += sim->cam_speed;
+                camera.azimuth += camera.speed * sim.deltaTime;
                 break;
             case GLFW_KEY_DOWN:
-                sim->lat -= sim->cam_speed;
+                camera.polar = std::clamp(camera.polar - camera.speed * sim.deltaTime, -.49f * glm::pi<float>(), .49f * glm::pi<float>());
                 break;
             case GLFW_KEY_UP:
-                sim->lat += sim->cam_speed;
+                camera.polar = std::clamp(camera.polar + camera.speed * sim.deltaTime, -.49f * glm::pi<float>(), .49f * glm::pi<float>());
                 break;
             }
         });
@@ -161,29 +177,15 @@ int main()
         glPointSize(10.f);
         glLineWidth(5.f);
 
-        chr::duration<float>
-            frame_start = chr::steady_clock::now().time_since_epoch(),
-            frame_end = chr::steady_clock::now().time_since_epoch();
+        float frame_time{}, last_time {};
         while (!glfwWindowShouldClose(*gl_window)) {
-            frame_end = chr::steady_clock::now().time_since_epoch();
-            sim_state.deltaTime = (frame_end - frame_start).count();
-            frame_start = frame_end;
-            glNamedBufferSubData(buf_time, 0, buf_time.size_bytes(), &sim_state.deltaTime);
+            frame_time = glfwGetTime();
+            sim.deltaTime = frame_time - last_time;
+            last_time = frame_time;
+            glNamedBufferSubData(buf_time, 0, buf_time.size_bytes(), &sim.deltaTime);
 
-            using view_t = decltype(buf_camera)::buffer_t;
-            // const vec3 view_point =
-            //     //glm::rotate(glm::mat4 { 1 }, 4 * std::sinf(.2f * frame_start.count()), vec3 { 0.f, 1.f, 0.f }) *
-            //     vec4(0, 0, 20, 1);
-
-            static auto last_rot = glm::identity<glm::quat>();
-            last_rot = glm::mix(last_rot, glm::angleAxis(sim_state.lon, vec3(0, 1, 0)) * glm::angleAxis(sim_state.lat, vec3(1, 0, 0)),  sim_state.deltaTime);
-            const vec3 view_point = last_rot * vec4(0, 0, 20, 0);
-            /*const vec3 view_point
-                = glm::angleAxis(sim_state.lon, vec3(0, 1, 0))
-                * glm::angleAxis(sim_state.lat, vec3(1, 0, 0))
-                * vec4(0, 0, 20, 0);*/
-            const auto next_view = glm::lookAt(view_point, glm::vec3 { 0.f, 0.f, 0.f }, glm::vec3 { 0.f, 1.f, 0.f });
-            glNamedBufferSubData(buf_camera, 0, sizeof(view_t), &next_view[0][0]);
+            const auto view = camera.view();
+            glNamedBufferSubData(buf_camera, 0, sizeof(view), &view[0][0]);
 
             using proj_t = decltype(buf_camera)::buffer_t;
             const auto next_persp = glm::perspective(45.f, gl_window.window_aspect(), 1e-2f, 1e2f);
@@ -191,7 +193,7 @@ int main()
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            if (!sim_state.pause) {
+            if (!sim.pause) {
                 glUseProgram(move_prog);
                 glDispatchCompute(buf_positions.size(), 1, 1);
             }
