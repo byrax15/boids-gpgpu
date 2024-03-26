@@ -1,6 +1,6 @@
 #version 450 core
 
-#include "uPhysics.h"
+#include "sPhysics.h"
 #include "uCamera.h"
 
 void main(){

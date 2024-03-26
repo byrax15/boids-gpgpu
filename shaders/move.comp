@@ -2,7 +2,7 @@
 
 layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
 
-#include "uPhysics.h"
+#include "sPhysics.h"
 #include "uTime.h"
 #include "uSceneWalls.h"
 
@@ -17,5 +17,6 @@ void main() {
 	if (positions[id].z < -scene_size.z || scene_size.z < positions[id].z) { 
 		positions[id].z *= -1;
 	}
+	positions[id].xyz = clamp(positions[id].xyz, -scene_size, scene_size);
 	positions[id] += deltaTime * velocities[id];
 }

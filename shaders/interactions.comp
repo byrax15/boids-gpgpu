@@ -1,0 +1,30 @@
+#version 460 core
+
+layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
+
+#include "sPhysics.h"
+#include "uTime.h"
+
+const float sight_range = 3.f;
+const float repulse_range = .7f;
+
+void main() {
+	const uint id = gl_GlobalInvocationID.x;
+	vec4 sum = vec4(0);
+	float num_seen = 0;
+	for (int i = 0; i < velocities.length(); ++i) {
+		const vec4 to_other = positions[i] - positions[id];
+		const float dist_sq = dot(to_other, to_other);
+
+		if (sight_range*sight_range > dist_sq) {
+			num_seen+=1;
+			sum += velocities[i];
+		}
+//		if (repulse_range*repulse_range > dist_sq) {
+//			sum.xyz += cross(vec3(velocities[id]), vec3(velocities[i]));
+//		}
+	}
+	
+	velocities[id] = mix(velocities[id], sum/num_seen, deltaTime);
+	colors[id] = vec4(.6 * sin(velocities[id].xyz) + .4, 1);
+}

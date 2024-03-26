@@ -39,7 +39,7 @@ import vertex_buffer;
 namespace chr = std::chrono;
 using glm::vec3;
 using glm::vec4;
-using i_color_t = glm::vec4;
+using color_t = glm::vec4;
 using position_t = glm::vec4;
 using velocity_t = glm::vec4;
 
@@ -51,14 +51,13 @@ constexpr std::array model_boid {
     Face { vec3(.5, -.5, -.5), vec3(0, .5, 0), vec3(0, -.5, .5) },
 };
 
-constexpr vec3 scene_size { 5, 5, 5 };
+constexpr vec3 scene_size { 10, 5, 10 };
 
 constexpr size_t nBoids = 50;
 constexpr std::array boids_attribute_formats {
-    vertex_attrib_format { 0, 0, 1, i_color_t::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
-    vertex_attrib_format { 1, 1, 0, Face::value_type::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
+    vertex_attrib_format { 0, 0, 0, Face::value_type::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
 };
-const auto& [format_color, format_boid] = boids_attribute_formats;
+const auto& [format_boid] = boids_attribute_formats;
 
 struct simulation {
     bool pause = false;
@@ -85,7 +84,7 @@ struct camera {
 
     auto incr_zoom(float delta)
     {
-        zoom = std::max(zoom, 0.f);
+        zoom = std::max(zoom + delta, 0.f);
         return zoom;
     }
 
@@ -145,6 +144,17 @@ int main()
             if (io.WantCaptureMouse)
                 return;
         });
+        glfwSetScrollCallback(*gl_window, [](GLFWwindow* window, double xoffset, double yoffset) {
+            const auto& glwin = *reinterpret_cast<decltype(&gl_window)>(glfwGetWindowUserPointer(window));
+            if (glwin.is_mouse_captured()) {
+                cam.incr_zoom(-yoffset);
+                return;
+            }
+            auto& io = ImGui::GetIO();
+            io.AddMouseWheelEvent(xoffset, yoffset);
+            if (io.WantCaptureMouse)
+                return;
+        });
         glfwSetFramebufferSizeCallback(*gl_window, [](GLFWwindow* window, int width, int height) {
             glViewport(0, 0, width, height);
         });
@@ -167,6 +177,12 @@ int main()
                 shader_builder { "shaders/move.comp.spv", gl::GL_COMPUTE_SHADER },
             }
         };
+        const auto interactions_prog = shader_program {
+            gl_window,
+            {
+                shader_builder { "shaders/interactions.comp.spv", gl::GL_COMPUTE_SHADER },
+            }
+        };
         const auto debug_velocities_prog = shader_program {
             gl_window,
             {
@@ -187,23 +203,23 @@ int main()
 
         const auto vao_no_attributes = vertex_array { gl_window };
 
-        const auto buf_colors = vertex_buffer {
-            gl_window, nBoids, [] { return glm::rgbColor(glm::linearRand(vec3(0, 1, 1), vec3(360, 1, 1))); }
-        };
-        glVertexArrayVertexBuffer(vao_boids, format_color.binding_id, buf_colors, 0, sizeof(decltype(buf_colors)::buffer_t));
-
         const auto buf_boid = vertex_buffer { gl_window, std::span { &model_boid[0][0], model_boid.size() * std::tuple_size<Face>::value } };
         glVertexArrayVertexBuffer(vao_boids, format_boid.binding_id, buf_boid, 0, sizeof(decltype(buf_boid)::buffer_t));
 
         const auto buf_positions = vertex_buffer {
-            gl_window, nBoids, [] { return .5f * glm::linearRand(vec4 { -scene_size, 0 }, vec4 { scene_size, 0 }); }
+            gl_window, nBoids, [] { return glm::linearRand(vec4 { -.8f * scene_size, 0 }, vec4 { .8f * scene_size, 0 }); }
         };
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf_positions);
 
         const auto buf_velocities = vertex_buffer {
-            gl_window, nBoids, [] { return glm::normalize(glm::linearRand(vec4 { -1, -1, -1, 0 }, vec4 { 1, 1, 1, 0 })); }
+            gl_window, nBoids, [] { return (glm::linearRand(vec4 { -1, -1, -1, 0 }, vec4 { 1, 1, 1, 0 })); }
         };
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf_velocities);
+
+        const auto buf_colors = vertex_buffer {
+            gl_window, nBoids, [] { return vec4(glm::rgbColor(glm::linearRand(vec3(0, 1, 1), vec3(360, 1, 1))), 1); }
+        };
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, buf_colors);
 
         const auto buf_camera = vertex_buffer { gl_window, std::span { (glm::mat4*)nullptr, 2 } };
         glBindBufferBase(GL_UNIFORM_BUFFER, 0, buf_camera);
@@ -248,8 +264,12 @@ int main()
                 buffer[0] = sim.deltaTime;
             }
 
+            // physics
             if (!sim.pause) {
                 glUseProgram(move_prog);
+                glDispatchCompute(buf_positions.size(), 1, 1);
+                // glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+                glUseProgram(interactions_prog);
                 glDispatchCompute(buf_positions.size(), 1, 1);
             }
 
@@ -272,6 +292,7 @@ int main()
 
             // debug overlay
 #ifndef NDEBUG
+            glClear(GL_DEPTH_BUFFER_BIT);
             glBindVertexArray(vao_no_attributes);
             glUseProgram(debug_velocities_prog);
             glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());

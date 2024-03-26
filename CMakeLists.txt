@@ -28,12 +28,15 @@ find_package(implot     CONFIG REQUIRED)
 add_spirv_modules(boids-shaders
         SOURCE_DIR  shaders
         BINARY_DIR  shaders
-        SOURCES     shader.vert 
-                    shader.frag 
+        SOURCES     shader.vert
                     debug_wall_corners.vert
                     debug_velocities.vert
+        
+                    shader.frag 
                     debug_color.frag
+        
                     move.comp 
+                    interactions.comp
         OPTIONS     "--target-env=opengl"
 )
 
