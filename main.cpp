@@ -24,6 +24,7 @@
 #include <exception>
 #include <iostream>
 #include <numbers>
+#include <numeric>
 #include <print>
 #include <ranges>
 #include <span>
@@ -52,7 +53,7 @@ constexpr std::array model_boid {
 
 constexpr vec3 scene_size { 5, 5, 5 };
 
-constexpr size_t nBoids = 20;
+constexpr size_t nBoids = 50;
 constexpr std::array boids_attribute_formats {
     vertex_attrib_format { 0, 0, 1, i_color_t::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
     vertex_attrib_format { 1, 1, 0, Face::value_type::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
@@ -65,7 +66,7 @@ struct simulation {
     float deltaTime = 0;
     std::vector<position_t> positions;
     std::vector<velocity_t> velocities;
-};
+} sim;
 
 struct camera {
     float azimuth {}, polar {}, zoom = 20.f;
@@ -82,40 +83,74 @@ struct camera {
         };
     }
 
+    auto incr_zoom(float delta)
+    {
+        zoom = std::max(zoom, 0.f);
+        return zoom;
+    }
+
+    auto pan_vert(float amplitude)
+    {
+        polar = std::clamp(polar + amplitude * speed * sim.deltaTime, -.49f * glm::pi<float>(), .49f * glm::pi<float>());
+    }
+
+    auto pan_hori(float amplitude)
+    {
+        azimuth -= amplitude * speed * sim.deltaTime;
+    }
+
     auto view() const
     {
         return glm::lookAt(eye(), focus, vec3(0, 1, 0));
     }
-};
+} cam;
 
 int main()
 {
     using namespace gl;
     try {
         const auto& gl_window = opengl::instance();
-        simulation sim;
-        camera cam;
-        std::tuple user_pointers { &gl_window, &sim, &cam };
-        glfwSetWindowUserPointer(*gl_window, &user_pointers);
+        glfwSetWindowUserPointer(*gl_window, (void*)&gl_window);
         glfwSetKeyCallback(*gl_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-            const auto& [glwin, sim, cam] = *reinterpret_cast<decltype(&user_pointers)>(glfwGetWindowUserPointer(window));
+            const auto& glwin = *reinterpret_cast<decltype(&gl_window)>(glfwGetWindowUserPointer(window));
             if (action == GLFW_PRESS) {
                 switch (key) {
                 case GLFW_KEY_ESCAPE:
                     glfwSetWindowShouldClose(window, true);
                     break;
                 case GLFW_KEY_P:
-                    sim->pause = !sim->pause;
+                    sim.pause = !sim.pause;
+                    break;
+                case GLFW_KEY_O:
+                    glwin.toggle_mouse_capture();
                     break;
                 }
             }
+        });
+        glfwSetCursorPosCallback(*gl_window, [](GLFWwindow* window, double xpos, double ypos) {
+            const auto& glwin = *reinterpret_cast<decltype(&gl_window)>(glfwGetWindowUserPointer(window));
+            if (glwin.is_mouse_captured()) {
+                static glm::vec2 last_pos { xpos, ypos };
+                glm::vec2 new_pos { xpos, ypos };
+                glm::ivec2 i_win_size;
+                glfwGetWindowSize(window, &i_win_size.x, &i_win_size.y);
+                const auto percent_change = (new_pos - last_pos) /*/ glm::vec2(i_win_size)*/;
+                cam.pan_hori(percent_change.x);
+                cam.pan_vert(-percent_change.y);
+                last_pos = new_pos;
+                return;
+            }
+            auto& io = ImGui::GetIO();
+            io.AddMousePosEvent(xpos, ypos);
+            if (io.WantCaptureMouse)
+                return;
         });
         glfwSetFramebufferSizeCallback(*gl_window, [](GLFWwindow* window, int width, int height) {
             glViewport(0, 0, width, height);
         });
         glfwSetWindowIconifyCallback(*gl_window, [](GLFWwindow* window, int iconified) {
-            const auto& [glwin, sim, cam] = *reinterpret_cast<decltype(&user_pointers)>(glfwGetWindowUserPointer(window));
-            sim->iconified = iconified;
+            // const auto& [glwin, sim, cam] = *reinterpret_cast<decltype(&user_pointers)>(glfwGetWindowUserPointer(window));
+            sim.iconified = iconified;
         });
         glfwSetWindowSize(*gl_window, 1920, 1080);
 
@@ -136,7 +171,7 @@ int main()
             gl_window,
             {
                 shader_builder { "shaders/debug_velocities.vert.spv", GL_VERTEX_SHADER },
-                shader_builder { "shaders/debug_color.frag.spv", GL_FRAGMENT_SHADER, { 0, 255, 255 } },
+                shader_builder { "shaders/debug_color.frag.spv", GL_FRAGMENT_SHADER, { 255, 255, 255 } },
             }
         };
         const auto debug_walls_prog = shader_program {
@@ -161,7 +196,7 @@ int main()
         glVertexArrayVertexBuffer(vao_boids, format_boid.binding_id, buf_boid, 0, sizeof(decltype(buf_boid)::buffer_t));
 
         const auto buf_positions = vertex_buffer {
-            gl_window, nBoids, [] { return glm::linearRand(vec4 { -scene_size, 0 }, vec4 { scene_size, 0 }); }
+            gl_window, nBoids, [] { return .5f * glm::linearRand(vec4 { -scene_size, 0 }, vec4 { scene_size, 0 }); }
         };
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf_positions);
 
@@ -191,16 +226,16 @@ int main()
             // glfwMakeContextCurrent(*gl_window);
             glfwPollEvents();
             if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_A)) {
-                cam.azimuth -= cam.speed * sim.deltaTime;
+                cam.pan_hori(-1);
             }
             if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_D)) {
-                cam.azimuth += cam.speed * sim.deltaTime;
+                cam.pan_hori(1);
             }
             if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_S)) {
-                cam.polar = std::clamp(cam.polar - cam.speed * sim.deltaTime, -.49f * glm::pi<float>(), .49f * glm::pi<float>());
+                cam.pan_vert(-1);
             }
             if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_W)) {
-                cam.polar = std::clamp(cam.polar + cam.speed * sim.deltaTime, -.49f * glm::pi<float>(), .49f * glm::pi<float>());
+                cam.pan_vert(1);
             }
 
             // deltaTime calc
@@ -214,21 +249,8 @@ int main()
             }
 
             if (!sim.pause) {
-                //{
-                //    const auto mapped_pos = buf_positions.map_buffer();
-                //    memcpy(mapped_pos.data(), sim.positions.data(), mapped_pos.size_bytes());
-                //    const auto mapped_vel = buf_velocities.map_buffer();
-                //    memcpy(mapped_vel.data(), sim.velocities.data(), mapped_vel.size_bytes());
-                //}
                 glUseProgram(move_prog);
                 glDispatchCompute(buf_positions.size(), 1, 1);
-                // glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-                //{
-                //     const auto mapped_pos = buf_positions.map_buffer();
-                //     memcpy(sim.positions.data(), mapped_pos.data(), mapped_pos.size_bytes());
-                //     const auto mapped_vel = buf_velocities.map_buffer();
-                //     memcpy(sim.velocities.data(), mapped_vel.data(), mapped_vel.size_bytes());
-                // }
             }
 
             // stop rendering if minified
@@ -256,7 +278,7 @@ int main()
 
             glBindVertexArray(vao_no_attributes);
             glUseProgram(debug_walls_prog);
-            glDrawArrays(GL_POINTS, 0, 8);
+            glDrawArrays(GL_LINES, 0, 8);
 #endif
 
             // IMGUI code
@@ -270,17 +292,30 @@ int main()
                 static size_t fps_iter = 0;
                 if (frame_time - last_update >= 1.f) {
                     last_update = frame_time;
-                    fps_samples[fps_iter] = 1.f / sim.deltaTime;
-                    fps_iter = (fps_iter + 1) % fps_samples.size();
+                    for (const auto& [l, r] : fps_samples | std::views::pairwise) {
+                        l = r;
+                    }
+                    *fps_samples.rbegin() = 1.f / sim.deltaTime;
                 }
                 ImPlot::SetNextAxesToFit();
-                if (ImGui::Begin("Debug View") && ImPlot::BeginPlot("FPS", { 200, 100 })) {
-                    ImPlot::PlotBars("## fps", fps_samples.data(), fps_samples.size());
+                if (ImGui::Begin("Debug View") && ImPlot::BeginPlot("FPS", { ImGui::GetColumnWidth(), 100 })) {
+                    constexpr auto xs = std::invoke([] {
+                        std::array<float, 10> out;
+                        for (auto i = out.begin(); i != out.end(); ++i)
+                            *i = -9 + std::distance(out.begin(), i);
+                        return out;
+                    });
+                    ImPlot::PlotLine("## fps legend", xs.data(), fps_samples.data(), fps_samples.size());
                     ImPlot::EndPlot();
-//                    std::print(R"(
-//p:{}
-//v:{})",
-//                        glm::to_string(sim.positions[0]), glm::to_string(sim.velocities[0]));
+                    //                    std::print(R"(
+                    // p:{}
+                    // v:{})",
+                    //                        glm::to_string(sim.positions[0]), glm::to_string(sim.velocities[0]));
+                    ImGui::Text("Controls");
+                    ImGui::Text("Camera mov.:          WASD & Mouse");
+                    ImGui::Text("Quit:                 ESC");
+                    ImGui::Text("Pause physics:        P");
+                    ImGui::Text("Toggle mouse capture: O");
                 }
                 ImGui::End();
 

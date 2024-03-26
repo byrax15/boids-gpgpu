@@ -15,6 +15,7 @@ module;
 #include <implot.h>
 
 #include <format>
+#include <optional>
 #include <print>
 #include <stdexcept>
 export module contexts;
@@ -52,8 +53,29 @@ public:
 
     auto operator*() const { return window; }
 
+    auto toggle_mouse_capture() const
+    {
+        set_mouse_capture(!mouse_captured);
+        return mouse_captured;
+    }
+
+    auto is_mouse_captured() const { return mouse_captured; }
+
 private:
+    void set_mouse_capture(bool capture) const
+    {
+        if (capture) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+        }
+        mouse_captured = capture;
+    }
+
     GLFWwindow* window;
+    mutable bool mouse_captured;
 };
 
 opengl::opengl()
@@ -70,11 +92,14 @@ opengl::opengl()
     glfwSwapInterval(1);
 
     glbinding::initialize(glfwGetProcAddress);
+    set_mouse_capture(true);
+
 
     ImGui::CreateContext();
     ImPlot::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
+
 
 #ifndef NDEBUG
     gl::glEnable(gl::GL_DEBUG_OUTPUT);
