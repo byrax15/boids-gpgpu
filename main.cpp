@@ -1,12 +1,11 @@
-#define GLFW_INCLUDE_NONE
 #include <glbinding/gl46core/gl.h>
 
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-
 #include <implot.h>
 
 #include <glm/glm.hpp>
@@ -20,15 +19,11 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <exception>
-#include <iostream>
-#include <numbers>
 #include <numeric>
 #include <print>
 #include <ranges>
 #include <span>
-#include <thread>
 #include <vector>
 
 import contexts;
@@ -36,7 +31,6 @@ import shader;
 import vertex_array;
 import vertex_buffer;
 
-namespace chr = std::chrono;
 using glm::vec3;
 using glm::vec4;
 using color_t = glm::vec4;
@@ -53,7 +47,7 @@ constexpr std::array model_boid {
 
 constexpr vec3 scene_size { 10, 5, 10 };
 
-constexpr size_t nBoids = 50;
+constexpr size_t nBoids = 100;
 constexpr std::array boids_attribute_formats {
     vertex_attrib_format { 0, 0, 0, Face::value_type::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
 };
@@ -292,7 +286,6 @@ int main()
 
             // debug overlay
 #ifndef NDEBUG
-            glClear(GL_DEPTH_BUFFER_BIT);
             glBindVertexArray(vao_no_attributes);
             glUseProgram(debug_velocities_prog);
             glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());
@@ -328,10 +321,6 @@ int main()
                     });
                     ImPlot::PlotLine("## fps legend", xs.data(), fps_samples.data(), fps_samples.size());
                     ImPlot::EndPlot();
-                    //                    std::print(R"(
-                    // p:{}
-                    // v:{})",
-                    //                        glm::to_string(sim.positions[0]), glm::to_string(sim.velocities[0]));
                     ImGui::Text("Controls");
                     ImGui::Text("Camera mov.:          WASD & Mouse");
                     ImGui::Text("Quit:                 ESC");
@@ -345,6 +334,6 @@ int main()
             }
         }
     } catch (std::exception const& e) {
-        std::cout << e.what() << "\n";
+        std::print("{}\n", e.what());
     }
 }
