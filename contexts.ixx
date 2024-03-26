@@ -12,6 +12,8 @@ module;
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <implot.h>
+
 #include <format>
 #include <print>
 #include <stdexcept>
@@ -26,6 +28,7 @@ public:
     {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
+        ImPlot::DestroyContext();
         ImGui::DestroyContext();
         glfwDestroyWindow(window);
         glfwTerminate();
@@ -59,6 +62,9 @@ opengl::opengl()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifndef NDEBUG
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+#endif
     window = glfwCreateWindow(640, 480, "Boids GPGPU", nullptr, nullptr);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
@@ -66,6 +72,7 @@ opengl::opengl()
     glbinding::initialize(glfwGetProcAddress);
 
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
 

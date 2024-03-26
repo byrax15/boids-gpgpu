@@ -53,6 +53,14 @@ struct vertex_buffer {
         gl::glNamedBufferData(m_vbo, data.size_bytes(), data.data(), gl::GL_STATIC_DRAW);
     }
 
+    vertex_buffer(opengl const& context, size_t count, auto&& initializer)
+        : vertex_buffer(context, count)
+    {
+        gl::glNamedBufferData(m_vbo, count * sizeof(decltype(initializer())), nullptr, gl::GL_STATIC_DRAW);
+        for (auto& e : map_buffer())
+            e = initializer();
+    }
+
     ~vertex_buffer() { gl::glDeleteBuffers(1, &m_vbo); }
 
     vertex_buffer() = default;
@@ -80,8 +88,8 @@ private:
     gl::GLuint m_size = 0;
 };
 
-template <typename TContained>
-vertex_buffer(opengl const&, TContained&&) -> vertex_buffer<std::remove_cvref_t<TContained>>;
-
 export template <typename TContained, size_t Extent>
 vertex_buffer(opengl const&, std::span<TContained, Extent>) -> vertex_buffer<std::remove_cvref_t<TContained>>;
+
+export template <typename Callable>
+vertex_buffer(opengl const&, size_t count, Callable&& initializer) -> vertex_buffer<std::remove_cvref_t<decltype(initializer())>>;

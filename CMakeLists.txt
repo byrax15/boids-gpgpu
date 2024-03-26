@@ -23,11 +23,14 @@ find_package(glm        CONFIG REQUIRED)
 find_package(glfw3      CONFIG REQUIRED)
 find_package(imgui      CONFIG REQUIRED)
 find_package(imguizmo   CONFIG REQUIRED)
+find_package(implot     CONFIG REQUIRED)
 
 add_spirv_modules(boids-shaders
         SOURCE_DIR  shaders
         BINARY_DIR  shaders
-        SOURCES     shader.vert shader.frag 
+        SOURCES     shader.vert 
+                    shader.frag 
+                    debug_wall_corners.vert
                     debug_velocities.vert
                     debug_color.frag
                     move.comp 
@@ -42,7 +45,7 @@ target_sources(boids-gpgpu PRIVATE
         "shader_program.ixx"
         "vertex_buffer.ixx"
         "vertex_array.ixx"
-  )
+   "physics_buffer.ixx")
 set_target_properties(boids-gpgpu PROPERTIES COMPILE_WARNING_AS_ERROR ON)
 add_dependencies(boids-gpgpu boids-shaders)
 target_link_libraries(boids-gpgpu PRIVATE
@@ -51,4 +54,5 @@ target_link_libraries(boids-gpgpu PRIVATE
         glfw
         imgui::imgui
         imguizmo::imguizmo
+        implot::implot
 )
