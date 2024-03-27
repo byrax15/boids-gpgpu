@@ -13,8 +13,13 @@ const float avoid_sq = avoid_range*avoid_range;
 
 void main() {
 	const uint id = gl_GlobalInvocationID.x;
-	vec4 sum = vec4(0);
+	vec4 sum_pos = vec4(0);
+	vec4 sum_vel = vec4(0);
 	float num_seen = 0;
+	
+	vec4 sum_avoid = vec4(0);	
+	float num_avoid = 0;
+
 	for (int i = 0; i < velocities.length(); ++i) {
 		const vec4 to_other = positions[i] - positions[id];
 		const float dist_sq = dot(to_other, to_other);
@@ -22,25 +27,26 @@ void main() {
 		// sight broad-phase 
 		if (sight_sq > dist_sq) {
 			num_seen+=1;
+			sum_pos += positions[i];
+			sum_vel += velocities[i];
+
 			// avoid narrow-phase
 			// ignore self-collision
 			if (avoid_sq > dist_sq && dist_sq > 1e-4) {
-				sum += reflect(velocities[id], velocities[i]);
+				sum_avoid += reflect(velocities[id], velocities[i]);
+				num_avoid += 1;
 				continue;
-//				num_seen = 1;
-//				break;
 			}
-			sum += velocities[i];
 		}
 	}
 
-	const vec4 avg_vel = sum/num_seen;
-	float new_mag; 
-	if(dot(velocities[id],velocities[id]) > dot(avg_vel,avg_vel)) 
-		new_mag = length(velocities[id]);
-	else
-		new_mag = length(avg_vel);
-	const vec4 reoriented = new_mag * normalize(sum/num_seen);
-	velocities[id] = mix(velocities[id], reoriented, deltaTime);
+	const vec4 avg_pos = sum_pos/num_seen - positions[id];
+	const vec4 avg_vel = sum_vel/num_seen;
+	const vec4 avg_avoid = sum_avoid;
+	
+	const float target_mag = max(length(velocities[id]), length(avg_avoid));
+	const vec4 goal = target_mag * normalize(avg_pos+avg_vel+avg_avoid);
+
+	velocities[id] = mix(velocities[id], goal, deltaTime);
 	colors[id] = vec4(.6 * sin(velocities[id].xyz) + .4, 1);
 }

@@ -232,8 +232,8 @@ int main()
 
         float frame_time {}, last_time {};
         while (!glfwWindowShouldClose(*gl_window)) {
+            glfwMakeContextCurrent(*gl_window);
             glfwSwapBuffers(*gl_window);
-            // glfwMakeContextCurrent(*gl_window);
             glfwPollEvents();
             if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_A)) {
                 cam.pan_hori(-1);
