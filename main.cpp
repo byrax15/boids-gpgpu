@@ -44,10 +44,6 @@ constexpr std::array model_boid {
     Face { vec3(0, -.5, .5), vec3(-.5, -.5, -.5), vec3(.5, -.5, -.5) },
     Face { vec3(.5, -.5, -.5), vec3(0, .5, 0), vec3(0, -.5, .5) },
 };
-
-constexpr vec3 scene_size { 10, 5, 10 };
-
-constexpr size_t nBoids = 100;
 constexpr std::array boids_attribute_formats {
     vertex_attrib_format { 0, 0, 0, Face::value_type::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
 };
@@ -57,8 +53,10 @@ struct simulation {
     bool pause = false;
     bool iconified = false;
     float deltaTime = 0;
-    std::vector<position_t> positions;
-    std::vector<velocity_t> velocities;
+    vec3 scene_size { 10, 5, 10 };
+    size_t nBoids = 100;
+    std::array<float, 3> boid_sights { 3, 1 };
+    std::array<float, 3> boid_goal_strengths { .4, 1, 1.4 };
 } sim;
 
 struct camera {
@@ -117,6 +115,10 @@ int main()
                 case GLFW_KEY_O:
                     glwin.toggle_mouse_capture();
                     break;
+                case GLFW_KEY_ENTER:
+                    if (mods == GLFW_MOD_ALT) {
+                        glwin.toggle_fullscreen();
+                    }
                 }
             }
         });
@@ -201,17 +203,17 @@ int main()
         glVertexArrayVertexBuffer(vao_boids, format_boid.binding_id, buf_boid, 0, sizeof(decltype(buf_boid)::buffer_t));
 
         const auto buf_positions = vertex_buffer {
-            gl_window, nBoids, [] { return glm::linearRand(vec4 { -.8f * scene_size, 0 }, vec4 { .8f * scene_size, 0 }); }
+            gl_window, sim.nBoids, [] { return glm::linearRand(vec4 { -.8f * sim.scene_size, 0 }, vec4 { .8f * sim.scene_size, 0 }); }
         };
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf_positions);
 
         const auto buf_velocities = vertex_buffer {
-            gl_window, nBoids, [] { return (glm::linearRand(vec4 { -1, -1, -1, 0 }, vec4 { 1, 1, 1, 0 })); }
+            gl_window, sim.nBoids, [] { return (glm::linearRand(vec4 { -1, -1, -1, 0 }, vec4 { 1, 1, 1, 0 })); }
         };
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf_velocities);
 
         const auto buf_colors = vertex_buffer {
-            gl_window, nBoids, [] { return vec4(glm::rgbColor(glm::linearRand(vec3(0, 1, 1), vec3(360, 1, 1))), 1); }
+            gl_window, sim.nBoids, [] { return vec4(glm::rgbColor(glm::linearRand(vec3(0, 1, 1), vec3(360, 1, 1))), 1); }
         };
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, buf_colors);
 
@@ -221,8 +223,14 @@ int main()
         const auto buf_time = vertex_buffer { gl_window, std::span { (float*)nullptr, 1 } };
         glBindBufferBase(GL_UNIFORM_BUFFER, 1, buf_time);
 
-        const auto buf_scene_size = vertex_buffer { gl_window, std::span { &scene_size, 1 } };
+        const auto buf_scene_size = vertex_buffer { gl_window, std::span { &sim.scene_size, 1 } };
         glBindBufferBase(GL_UNIFORM_BUFFER, 2, buf_scene_size);
+
+        const auto buf_boid_sights = vertex_buffer { gl_window, std::span { sim.boid_sights } };
+        glBindBufferBase(GL_UNIFORM_BUFFER, 3, buf_boid_sights);
+
+        const auto buf_boid_goals = vertex_buffer { gl_window, std::span { sim.boid_goal_strengths } };
+        glBindBufferBase(GL_UNIFORM_BUFFER, 4, buf_boid_goals);
 
         glClearColor(0, 0, 0, 1);
         glEnable(GL_DEPTH_TEST);
@@ -312,7 +320,7 @@ int main()
                     *fps_samples.rbegin() = 1.f / sim.deltaTime;
                 }
                 ImPlot::SetNextAxesToFit();
-                if (ImGui::Begin("Debug View") && ImPlot::BeginPlot("FPS", { ImGui::GetColumnWidth(), 100 })) {
+                if (ImGui::Begin("Monitor") && ImPlot::BeginPlot("FPS", { ImGui::GetColumnWidth(), 100 })) {
                     constexpr auto xs = std::invoke([] {
                         std::array<float, 10> out;
                         for (auto i = out.begin(); i != out.end(); ++i)
@@ -321,11 +329,25 @@ int main()
                     });
                     ImPlot::PlotLine("## fps legend", xs.data(), fps_samples.data(), fps_samples.size());
                     ImPlot::EndPlot();
-                    ImGui::Text("Controls");
+                }
+                ImGui::End();
+
+                if (ImGui::Begin("Controls")) {
                     ImGui::Text("Camera mov.:          WASD & Mouse");
                     ImGui::Text("Quit:                 ESC");
                     ImGui::Text("Pause physics:        P");
                     ImGui::Text("Toggle mouse capture: O");
+                    ImGui::Text("Toggle fullscreen:    ALT+ENTER");
+                }
+                ImGui::End();
+
+                if (ImGui::Begin("Simulation")) {
+                    constexpr float drag_speed = .1f;
+                    ImGui::DragFloat("Sight range", &sim.boid_sights[0], drag_speed, 0, 0, "%.3f", 0);
+                    ImGui::DragFloat("Avoidance range", &sim.boid_sights[1], drag_speed, 0, sim.boid_sights[0], "%.3f", 0);
+                    ImGui::DragFloat("Cohesion strength", &sim.boid_goal_strengths[0], drag_speed, 0, 0, "%.3f", 0);
+                    ImGui::DragFloat("Alignment strength", &sim.boid_goal_strengths[1], drag_speed, 0, 0, "%.3f", 0);
+                    ImGui::DragFloat("Avoidance strength", &sim.boid_goal_strengths[2], drag_speed, 0, 0, "%.3f", 0);
                 }
                 ImGui::End();
 

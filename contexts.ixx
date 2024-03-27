@@ -53,6 +53,18 @@ public:
 
     auto operator*() const { return window; }
 
+    auto toggle_fullscreen() const
+    {
+        if (fullscreen) {
+            glfwSetWindowMonitor(window, nullptr, x, y, w, h, GLFW_DONT_CARE);
+        } else {
+            glfwGetWindowPos(window, &x, &y);
+            glfwGetWindowSize(window, &w, &h);
+            glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), x, y, w, h, GLFW_DONT_CARE);
+        }
+        fullscreen = !fullscreen;
+    }
+
     auto toggle_mouse_capture() const
     {
         set_mouse_capture(!mouse_captured);
@@ -75,7 +87,8 @@ private:
     }
 
     GLFWwindow* window;
-    mutable bool mouse_captured;
+    mutable bool mouse_captured, fullscreen;
+    mutable int x, y, w, h; // previous
 };
 
 opengl::opengl()
@@ -94,12 +107,10 @@ opengl::opengl()
     glbinding::initialize(glfwGetProcAddress);
     set_mouse_capture(true);
 
-
     ImGui::CreateContext();
     ImPlot::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
-
 
 #ifndef NDEBUG
     gl::glEnable(gl::GL_DEBUG_OUTPUT);
