@@ -13,22 +13,22 @@ void main() {
 		gl_Position.xyz *= vec3(1, 1, -1);
 		break;
 	case 2:
-		gl_Position.xyz *= vec3(1, -1, 1);
-		break;
-	case 3:
-		gl_Position.xyz *= vec3(1, -1, -1);
-		break;
-	case 4:
-		gl_Position.xyz *= vec3(-1, 1, 1);
-		break;
-	case 5:
 		gl_Position.xyz *= vec3(-1, 1, -1);
 		break;
+	case 3:
+		gl_Position.xyz *= vec3(-1, 1, 1);
+		break;
+	case 4:
+		gl_Position.xyz *= vec3(1, -1, 1);
+		break;
+	case 5:
+		gl_Position.xyz *= vec3(1, -1, -1);
+		break;
 	case 6:
-		gl_Position.xyz *= vec3(-1, -1, 1);
+		gl_Position.xyz *= vec3(-1, -1, -1);
 		break;
 	case 7:
-		gl_Position.xyz *= vec3(-1, -1, -1);
+		gl_Position.xyz *= vec3(-1, -1, 1);
 		break;
 	}
 	gl_Position = proj * view * gl_Position;

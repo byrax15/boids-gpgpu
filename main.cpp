@@ -294,13 +294,13 @@ int main()
 
             // debug overlay
 #ifndef NDEBUG
-            glBindVertexArray(vao_no_attributes);
-            glUseProgram(debug_velocities_prog);
-            glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());
+            //glBindVertexArray(vao_no_attributes);
+            //glUseProgram(debug_velocities_prog);
+            //glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());
 
             glBindVertexArray(vao_no_attributes);
             glUseProgram(debug_walls_prog);
-            glDrawArrays(GL_LINES, 0, 8);
+            glDrawArrays(GL_LINE_LOOP, 0, 8);
 #endif
 
             // IMGUI code
