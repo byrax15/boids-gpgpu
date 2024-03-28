@@ -41,9 +41,9 @@ void main() {
 	const vec4 avg_pos = sum_pos/num_seen - positions[id];
 	const vec4 avg_vel = sum_vel/num_seen;
 	const vec4 avg_avoid = sum_avoid;
-	
 	const vec4 goal = cohesion_strength*avg_pos + align_strength*avg_vel + avoid_strength*avg_avoid;
+	const float goal_vel = max(length(avg_vel), length(velocities[id]));
 
-	velocities[id] = length(velocities[id]) * normalize(mix(velocities[id], goal, deltaTime));
+	velocities[id] = goal_vel * normalize(mix(velocities[id], goal, deltaTime));
 	colors[id] = vec4(.6 * sin(velocities[id].xyz) + .4, 1);
 }

@@ -56,7 +56,7 @@ struct simulation {
     vec3 scene_size { 10, 5, 10 };
     size_t nBoids = 100;
     std::array<float, 3> boid_sights { 3, 1 };
-    std::array<float, 3> boid_goal_strengths { .4, 1, 1.4 };
+    std::array<float, 3> boid_goal_strengths { .4, 1., 1. };
 } sim;
 
 struct camera {
