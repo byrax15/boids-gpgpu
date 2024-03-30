@@ -57,10 +57,12 @@ public:
     {
         if (fullscreen) {
             glfwSetWindowMonitor(window, nullptr, x, y, w, h, GLFW_DONT_CARE);
+            glfwSwapInterval(1);
         } else {
             glfwGetWindowPos(window, &x, &y);
             glfwGetWindowSize(window, &w, &h);
             glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), x, y, w, h, GLFW_DONT_CARE);
+            glfwSwapInterval(1);
         }
         fullscreen = !fullscreen;
     }

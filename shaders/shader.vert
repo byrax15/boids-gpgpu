@@ -1,13 +1,16 @@
 #version 450 core
 
-layout(location = 0) out vec4 fragColor;
-layout(location = 1) out vec4 fPosition;
-layout(location = 2) out vec4 fNormal;
+layout(location = 0) out vec4 fPosition;
+layout(location = 1) out vec4 fNormal;
+layout(location = 2) out vec4 fLightPos;
+layout(location = 3) out vec4 fObjectColor;
+layout(location = 4) out vec4 fLightColor;
 
 layout(location = 0) in vec4 vPosition;
 layout(location = 1) in vec4 vNormal;
 
 #include "uCamera.h"
+#include "uLights.h"
 #include "sPhysics.h"
 
 void main() {
@@ -21,7 +24,9 @@ void main() {
 
     fPosition = view * (positions[gl_InstanceID] + aligned_vertex);
     fNormal = view * vNormal;
-    fragColor = colors[gl_InstanceID];
-
+    fLightPos = view * light_position;
+    fObjectColor = colors[gl_InstanceID];
+    fLightColor = light_color;
+    
     gl_Position = proj * fPosition;
 }

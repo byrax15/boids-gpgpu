@@ -52,6 +52,9 @@ struct Face {
         return { normal, normal, normal };
     }
 };
+struct Light {
+    vec4 position, color;
+} light(vec4(0.f, 10.f, 0.f, 1.f), vec4(1.f));
 
 constexpr std::array boid_model_positions {
     Face::positions_t { position_t(0, .5, 0, 1), position_t(.5, -.5, -.5, 1), position_t(-.5, -.5, -.5, 1) },
@@ -59,8 +62,7 @@ constexpr std::array boid_model_positions {
     Face::positions_t { position_t(0, -.5, .5, 1), position_t(-.5, -.5, -.5, 1), position_t(.5, -.5, -.5, 1) },
     Face::positions_t { position_t(.5, -.5, -.5, 1), position_t(0, .5, 0, 1), position_t(0, -.5, .5, 1) },
 };
-
-const auto boid_model_normals = std::invoke([&] {
+constexpr auto boid_model_normals = std::invoke([&] {
     constexpr auto size = std::tuple_size<decltype(boid_model_positions)> {};
     std::array<Face::normals_t, size> face_normal;
     for (const auto& [p, n] : std::views::zip(boid_model_positions, face_normal)) {
@@ -269,6 +271,9 @@ int main()
         const auto buf_boid_goals = vertex_buffer { gl_window, std::span { sim.boid_goal_strengths } };
         glBindBufferBase(GL_UNIFORM_BUFFER, 4, buf_boid_goals);
 
+        const auto buf_light = vertex_buffer { gl_window, std::span(&light, 1) };
+        glBindBufferBase(GL_UNIFORM_BUFFER, 5, buf_light);
+
         glClearColor(0, 0, 0, 1);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
@@ -280,17 +285,19 @@ int main()
             glfwMakeContextCurrent(*gl_window);
             glfwSwapBuffers(*gl_window);
             glfwPollEvents();
-            if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_A)) {
-                cam.pan_hori(-1);
-            }
-            if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_D)) {
-                cam.pan_hori(1);
-            }
-            if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_S)) {
-                cam.pan_vert(-1);
-            }
-            if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_W)) {
-                cam.pan_vert(1);
+            {
+                if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_A)) {
+                    cam.pan_hori(-1);
+                }
+                if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_D)) {
+                    cam.pan_hori(1);
+                }
+                if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_S)) {
+                    cam.pan_vert(-1);
+                }
+                if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_W)) {
+                    cam.pan_vert(1);
+                }
             }
 
             // deltaTime calc
