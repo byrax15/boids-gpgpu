@@ -344,7 +344,7 @@ int main()
 
             glBindVertexArray(vao_no_attributes);
             glUseProgram(debug_walls_prog);
-            glDrawArrays(GL_LINE_LOOP, 0, 8);
+            glDrawArraysInstanced(GL_LINE_LOOP, 0, 4, 2);
 #endif
 
             // IMGUI code
