@@ -36,18 +36,52 @@ using glm::vec4;
 using color_t = glm::vec4;
 using position_t = glm::vec4;
 using velocity_t = glm::vec4;
+using normal_t = glm::vec4;
 
-using Face = std::array<vec3, 3>;
-constexpr std::array model_boid {
-    Face { vec3(0, .5, 0), vec3(.5, -.5, -.5), vec3(-.5, -.5, -.5) },
-    Face { vec3(-.5, -.5, -.5), vec3(0, -.5, .5), vec3(0, .5, 0) },
-    Face { vec3(0, -.5, .5), vec3(-.5, -.5, -.5), vec3(.5, -.5, -.5) },
-    Face { vec3(.5, -.5, -.5), vec3(0, .5, 0), vec3(0, -.5, .5) },
+struct Face {
+    using positions_t = std::array<position_t, 3>;
+    using normals_t = std::array<normal_t, 3>;
+
+    static constexpr normals_t computeNormals(positions_t const& positions)
+    {
+        const std::array<vec3, 2> barycentric {
+            positions[2] - positions[0],
+            positions[1] - positions[0],
+        };
+        const auto normal = normal_t(glm::cross(barycentric[0], barycentric[1]), 0);
+        return { normal, normal, normal };
+    }
 };
+
+constexpr std::array boid_model_positions {
+    Face::positions_t { position_t(0, .5, 0, 1), position_t(.5, -.5, -.5, 1), position_t(-.5, -.5, -.5, 1) },
+    Face::positions_t { position_t(-.5, -.5, -.5, 1), position_t(0, -.5, .5, 1), position_t(0, .5, 0, 1) },
+    Face::positions_t { position_t(0, -.5, .5, 1), position_t(-.5, -.5, -.5, 1), position_t(.5, -.5, -.5, 1) },
+    Face::positions_t { position_t(.5, -.5, -.5, 1), position_t(0, .5, 0, 1), position_t(0, -.5, .5, 1) },
+};
+
+const auto boid_model_normals = std::invoke([&] {
+    constexpr auto size = std::tuple_size<decltype(boid_model_positions)> {};
+    std::array<Face::normals_t, size> face_normal;
+    for (const auto& [p, n] : std::views::zip(boid_model_positions, face_normal)) {
+        n = Face::computeNormals(p);
+    }
+    return face_normal;
+});
+
+template <typename T>
+constexpr size_t md_size()
+{
+    using array_t = std::remove_cvref_t<T>;
+    return std::tuple_size<array_t> {}
+    * std::tuple_size<typename array_t::value_type> {};
+}
+
 constexpr std::array boids_attribute_formats {
-    vertex_attrib_format { 0, 0, 0, Face::value_type::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
+    vertex_attrib_format { 0, 0, 0, position_t::length(), 0, gl::GL_FLOAT, gl::GL_FALSE },
+    vertex_attrib_format { 1, 1, 0, normal_t::length(), 0, gl::GL_FLOAT, gl::GL_TRUE },
 };
-const auto& [format_boid] = boids_attribute_formats;
+const auto& [format_model_position, format_model_normal] = boids_attribute_formats;
 
 struct simulation {
     bool pause = false;
@@ -199,8 +233,11 @@ int main()
 
         const auto vao_no_attributes = vertex_array { gl_window };
 
-        const auto buf_boid = vertex_buffer { gl_window, std::span { &model_boid[0][0], model_boid.size() * std::tuple_size<Face>::value } };
-        glVertexArrayVertexBuffer(vao_boids, format_boid.binding_id, buf_boid, 0, sizeof(decltype(buf_boid)::buffer_t));
+        const auto buf_boid_positions = vertex_buffer { gl_window, std::span((position_t*)&boid_model_positions, md_size<decltype(boid_model_positions)>()) };
+        glVertexArrayVertexBuffer(vao_boids, format_model_position.binding_id, buf_boid_positions, 0, buf_boid_positions.buffer_t_sizeof());
+
+        const auto buf_boid_normals = vertex_buffer { gl_window, std::span((normal_t*)&boid_model_normals, md_size<decltype(boid_model_normals)>()) };
+        glVertexArrayVertexBuffer(vao_boids, format_model_normal.binding_id, buf_boid_normals, 0, buf_boid_normals.buffer_t_sizeof());
 
         const auto buf_positions = vertex_buffer {
             gl_window, sim.nBoids, [] { return glm::linearRand(vec4 { -.8f * sim.scene_size, 0 }, vec4 { .8f * sim.scene_size, 0 }); }
@@ -290,13 +327,13 @@ int main()
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             glUseProgram(boid_prog);
             glBindVertexArray(vao_boids);
-            glDrawArraysInstanced(GL_TRIANGLES, 0, buf_boid.size(), buf_positions.size());
+            glDrawArraysInstanced(GL_TRIANGLES, 0, buf_boid_positions.size(), buf_positions.size());
 
             // debug overlay
 #ifndef NDEBUG
-            //glBindVertexArray(vao_no_attributes);
-            //glUseProgram(debug_velocities_prog);
-            //glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());
+            // glBindVertexArray(vao_no_attributes);
+            // glUseProgram(debug_velocities_prog);
+            // glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());
 
             glBindVertexArray(vao_no_attributes);
             glUseProgram(debug_walls_prog);
