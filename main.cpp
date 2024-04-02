@@ -87,16 +87,15 @@ const auto& [format_model_position, format_model_normal] = boids_attribute_forma
 
 struct simulation {
     bool pause = false, debug_vel = false;
-    bool iconified = false;
     float deltaTime = 0;
-    vec3 scene_size { 10, 6, 10 };
-    size_t nBoids = 100;
-    std::array<float, 3> boid_sights { 2.f, 1.f };
-    std::array<float, 3> boid_goal_strengths { .01f, .4f, 1.f };
+    vec3 scene_size = 4.f * vec3 { 5, 3, 5 };
+    size_t nBoids = 200;
+    std::array<float, 2> boid_sights { 5.f, 2.f };
+    std::array<float, 4> boid_goal_strengths { .4f, .2f, 1.f, .4f };
 } sim;
 
 struct camera {
-    float azimuth {}, polar {}, zoom = 20.f;
+    float azimuth {}, polar {}, zoom = 2.f * *std::ranges::max_element(std::span((float*)&sim.scene_size, 3));
     float speed = 1.f;
 
     glm::vec3 focus {};
@@ -140,6 +139,10 @@ int main()
         glfwSetWindowUserPointer(*gl_window, (void*)&gl_window);
         glfwSetKeyCallback(*gl_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
             const auto& glwin = *reinterpret_cast<decltype(&gl_window)>(glfwGetWindowUserPointer(window));
+            auto& io = ImGui::GetIO();
+            if (io.WantCaptureKeyboard)
+                return;
+
             if (action == GLFW_PRESS) {
                 switch (key) {
                 case GLFW_KEY_ESCAPE:
@@ -191,8 +194,8 @@ int main()
             glViewport(0, 0, width, height);
         });
         glfwSetWindowIconifyCallback(*gl_window, [](GLFWwindow* window, int iconified) {
-            // const auto& [glwin, sim, cam] = *reinterpret_cast<decltype(&user_pointers)>(glfwGetWindowUserPointer(window));
-            sim.iconified = iconified;
+            const auto& glwin = *reinterpret_cast<opengl*>(glfwGetWindowUserPointer(window));
+            glwin.set_iconified(iconified);
         });
         glfwSetWindowSize(*gl_window, 1920, 1080);
 
@@ -242,7 +245,7 @@ int main()
         glVertexArrayVertexBuffer(vao_boids, format_model_normal.binding_id, buf_boid_normals, 0, buf_boid_normals.buffer_t_sizeof());
 
         const auto buf_positions = vertex_buffer {
-            gl_window, sim.nBoids, [] { return glm::linearRand(vec4 { -.8f * sim.scene_size, 0 }, vec4 { .8f * sim.scene_size, 0 }); }
+            gl_window, sim.nBoids, [] { return glm::linearRand(.5f * vec4 { -sim.scene_size, 0 }, .5f * vec4 { sim.scene_size, 0 }); }
         };
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf_positions);
 
@@ -304,10 +307,11 @@ int main()
             frame_time = glfwGetTime();
             sim.deltaTime = frame_time - last_time;
             last_time = frame_time;
-            // deltaTime upload
+            // upload sim params
             {
-                const auto buffer = buf_time.map_buffer();
-                buffer[0] = sim.deltaTime;
+                buf_time.map_buffer()[0] = sim.deltaTime;
+                std::ranges::copy(sim.boid_sights, buf_boid_sights.map_buffer().begin());
+                std::ranges::copy(sim.boid_goal_strengths, buf_boid_goals.map_buffer().begin());
             }
 
             // physics
@@ -320,7 +324,7 @@ int main()
             }
 
             // stop rendering if minified
-            if (sim.iconified)
+            if (gl_window.is_iconified())
                 continue;
 
             // camera uniforms
@@ -391,6 +395,7 @@ int main()
                     ImGui::DragFloat("Cohesion strength", &sim.boid_goal_strengths[0], .01f, 0, 0, "%.3f", 0);
                     ImGui::DragFloat("Alignment strength", &sim.boid_goal_strengths[1], .01f, 0, 0, "%.3f", 0);
                     ImGui::DragFloat("Avoidance strength", &sim.boid_goal_strengths[2], .01f, 0, 0, "%.3f", 0);
+                    ImGui::DragFloat("Disturbance strength", &sim.boid_goal_strengths[3], .01f, 0, 0, "%.3f", 0);
                     ImGui::Checkbox("Debug velocity view", &sim.debug_vel);
                 }
                 ImGui::End();

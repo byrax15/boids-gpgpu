@@ -74,6 +74,8 @@ public:
     }
 
     auto is_mouse_captured() const { return mouse_captured; }
+    auto is_iconified() const { return iconified; }
+    void set_iconified(bool iconified) const { iconified = iconified; }
 
 private:
     void set_mouse_capture(bool capture) const
@@ -89,7 +91,7 @@ private:
     }
 
     GLFWwindow* window;
-    mutable bool mouse_captured, fullscreen;
+    mutable bool mouse_captured, fullscreen, iconified;
     mutable int x, y, w, h; // previous
 };
 
@@ -107,10 +109,12 @@ opengl::opengl()
     glfwSwapInterval(1);
 
     glbinding::initialize(glfwGetProcAddress);
-    set_mouse_capture(true);
+    set_mouse_capture(false);
 
     ImGui::CreateContext();
     ImPlot::CreateContext();
+    auto& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
 

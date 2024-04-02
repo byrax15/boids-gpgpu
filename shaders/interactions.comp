@@ -3,9 +3,9 @@
 layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
 
 #include "sPhysics.h"
-#include "uTime.h"
 #include "uBoidSight.h"
 #include "uSceneWalls.h"
+#include "fNoise.h"
 
 void main() {
 	const float sight_sq = sight_range * sight_range;
@@ -17,14 +17,17 @@ void main() {
 	float seen = 0;
 	for (uint i = 0; i < positions.length(); ++i){
 		if (i == id) continue;
-		const vec3 to_other = positions[id].xyz - positions[i].xyz;
+
+		const vec3 to_other = positions[i].xyz - positions[id].xyz;
 		const float dist_to_other_sq = dot(to_other,to_other);
+		
 		if (dist_to_other_sq > sight_sq) continue;
+//		if (dot(to_other, velocities[id].xyz) > 0) continue;
 		++seen;
 		cohesion += positions[i].xyz;
 		align += velocities[i].xyz;
 		if(dist_to_other_sq > avoid_sq) continue;
-		avoid += to_other;
+		avoid -= to_other;
 	}
 	
 	if (seen > 1e-1) {
@@ -35,8 +38,9 @@ void main() {
 		align = vec3(0);
 	}
 	avoid *= avoid_strength;
+
 	velocities[id].xyz += (cohesion + align + avoid) * deltaTime;
 	velocities[id].xyz = clamp(velocities[id].xyz, -scene_size, scene_size);
-	colors[id].xyz = normalize(velocities[id].xyz);
+	colors[id].xyz = normalize(abs(velocities[id].xyz));
 	colors[id].z = 1;
 }

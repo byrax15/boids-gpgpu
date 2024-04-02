@@ -8,7 +8,7 @@ layout(location = 4) in vec4 fLightColor;
 
 layout(location = 0) out vec4 outColor;
 
-const float shininess = 4;
+const float shininess = 8;
 
 void main() {
     // ambient
@@ -16,7 +16,7 @@ void main() {
   	
     // diffuse 
     const vec4 norm = normalize(fNormal);
-    const vec4 lightDir = normalize(fLightPos - fPosition);
+    const vec4 lightDir = normalize(-fLightPos);
     const float diff = max(dot(norm, lightDir), 0.0);
     const vec4 diffuse = fLightColor * (diff * fObjectColor);
     

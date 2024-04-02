@@ -3,5 +3,5 @@ layout(std140, binding = 3) uniform uBoidSight {
 };
 
 layout(std140, binding = 4) uniform uBoidGoal {
-    float cohesion_strength, align_strength, avoid_strength;
+    float cohesion_strength, align_strength, avoid_strength, random_strength;
 };

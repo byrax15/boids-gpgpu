@@ -5,17 +5,27 @@ layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
 #include "sPhysics.h"
 #include "uTime.h"
 #include "uSceneWalls.h"
+#include "fNoise.h"
 
 void main() {
 	const uint id = gl_GlobalInvocationID.x;
-	if (positions[id].x < -scene_size.x || scene_size.x < positions[id].x) { 
-		positions[id].x *= -1;
+	if (positions[id].x < -scene_size.x) {
+		velocities[id].xyz = noise(deltaTime) * reflect(velocities[id].xyz, vec3(1,0,0));
 	}
-	if (positions[id].y < -scene_size.y || scene_size.y < positions[id].y) { 
-		positions[id].y *= -1;
+	if(scene_size.x < positions[id].x) { 
+		velocities[id].xyz = noise(deltaTime) *reflect(velocities[id].xyz, vec3(-1,0,0));
 	}
-	if (positions[id].z < -scene_size.z || scene_size.z < positions[id].z) { 
-		positions[id].z *= -1;
+	if (positions[id].y < -scene_size.y) {
+		velocities[id].xyz = noise(deltaTime) *reflect(velocities[id].xyz, vec3(0,1,0));
+	}
+	if (scene_size.y < positions[id].y) { 
+		velocities[id].xyz = noise(deltaTime) *reflect(velocities[id].xyz, vec3(0,-1,0));
+	}
+	if (positions[id].z < -scene_size.z) {
+		velocities[id].xyz = noise(deltaTime) *reflect(velocities[id].xyz, vec3(0,0,1));
+	}
+	if (scene_size.z < positions[id].z) { 
+		velocities[id].xyz = noise(deltaTime) *reflect(velocities[id].xyz, vec3(0,0,-1));
 	}
 	positions[id].xyz = clamp(positions[id].xyz, -scene_size, scene_size);
 	positions[id] += deltaTime * velocities[id];
