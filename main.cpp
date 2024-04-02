@@ -139,10 +139,6 @@ int main()
         glfwSetWindowUserPointer(*gl_window, (void*)&gl_window);
         glfwSetKeyCallback(*gl_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
             const auto& glwin = *reinterpret_cast<decltype(&gl_window)>(glfwGetWindowUserPointer(window));
-            auto& io = ImGui::GetIO();
-            if (io.WantCaptureKeyboard)
-                return;
-
             if (action == GLFW_PRESS) {
                 switch (key) {
                 case GLFW_KEY_ESCAPE:
@@ -288,7 +284,7 @@ int main()
             glfwMakeContextCurrent(*gl_window);
             glfwSwapBuffers(*gl_window);
             glfwPollEvents();
-            {
+            if (auto& io = ImGui::GetIO(); !io.WantCaptureKeyboard) {
                 if (GLFW_PRESS == glfwGetKey(*gl_window, GLFW_KEY_A)) {
                     cam.pan_hori(-1);
                 }
