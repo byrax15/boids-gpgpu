@@ -5,46 +5,38 @@ layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
 #include "sPhysics.h"
 #include "uTime.h"
 #include "uBoidSight.h"
-
-float sight_sq = sight_range * sight_range;
-float avoid_sq = avoid_range * avoid_range;
+#include "uSceneWalls.h"
 
 void main() {
+	const float sight_sq = sight_range * sight_range;
+	const float avoid_sq = avoid_range * avoid_range;
 	const uint id = gl_GlobalInvocationID.x;
-	vec4 sum_pos = vec4(0);
-	vec4 sum_vel = vec4(0);
-	float num_seen = 0;
-	
-	vec4 sum_avoid = vec4(0);	
-	float num_avoid = 0;
 
-	for (int i = 0; i < velocities.length(); ++i) {
-		const vec4 to_other = positions[i] - positions[id];
-		const float dist_sq = dot(to_other, to_other);
-
-		// sight broad-phase 
-		if (sight_sq > dist_sq) {
-			num_seen+=1;
-			sum_pos += positions[i];
-			sum_vel += velocities[i];
-
-			// avoid narrow-phase
-			// ignore self-collision
-			if (avoid_sq > dist_sq && dist_sq > 1e-4) {
-				sum_avoid += reflect(velocities[id], velocities[i]);
-				num_avoid += 1;
-				continue;
-			}
-		}
+	//inspired by http://www.kfish.org/boids/pseudocode.html
+	vec3 cohesion=vec3(0), avoid=vec3(0), align=vec3(0);
+	float seen = 0;
+	for (uint i = 0; i < positions.length(); ++i){
+		if (i == id) continue;
+		const vec3 to_other = positions[id].xyz - positions[i].xyz;
+		const float dist_to_other_sq = dot(to_other,to_other);
+		if (dist_to_other_sq > sight_sq) continue;
+		++seen;
+		cohesion += positions[i].xyz;
+		align += velocities[i].xyz;
+		if(dist_to_other_sq > avoid_sq) continue;
+		avoid += to_other;
 	}
-
-	const vec4 avg_pos = sum_pos/num_seen - positions[id];
-	const vec4 avg_vel = sum_vel/num_seen;
-	const vec4 avg_avoid = sum_avoid;
-	const vec4 goal = cohesion_strength*avg_pos + align_strength*avg_vel + avoid_strength*avg_avoid;
-	const float goal_vel = max(length(avg_vel), length(velocities[id]));
-
-	velocities[id] = goal_vel * normalize(mix(velocities[id], goal, deltaTime));
-	colors[id] = .6 * sin(velocities[id]) + .4;
+	
+	if (seen > 1e-1) {
+		cohesion = cohesion_strength * (cohesion/seen - positions[id].xyz);
+		align = align_strength * align/seen;
+	} else {
+		cohesion = vec3(0);
+		align = vec3(0);
+	}
+	avoid *= avoid_strength;
+	velocities[id].xyz += (cohesion + align + avoid) * deltaTime;
+	velocities[id].xyz = clamp(velocities[id].xyz, -scene_size, scene_size);
+	colors[id].xyz = normalize(velocities[id].xyz);
 	colors[id].z = 1;
 }

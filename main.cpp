@@ -86,13 +86,13 @@ constexpr std::array boids_attribute_formats {
 const auto& [format_model_position, format_model_normal] = boids_attribute_formats;
 
 struct simulation {
-    bool pause = false;
+    bool pause = false, debug_vel = false;
     bool iconified = false;
     float deltaTime = 0;
-    vec3 scene_size { 10, 5, 10 };
+    vec3 scene_size { 10, 6, 10 };
     size_t nBoids = 100;
-    std::array<float, 3> boid_sights { 3, 1 };
-    std::array<float, 3> boid_goal_strengths { .4, 1., 1. };
+    std::array<float, 3> boid_sights { 2.f, 1.f };
+    std::array<float, 3> boid_goal_strengths { .01f, .4f, 1.f };
 } sim;
 
 struct camera {
@@ -337,15 +337,15 @@ int main()
             glDrawArraysInstanced(GL_TRIANGLES, 0, buf_boid_positions.size(), buf_positions.size());
 
             // debug overlay
-#ifndef NDEBUG
-            // glBindVertexArray(vao_no_attributes);
-            // glUseProgram(debug_velocities_prog);
-            // glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());
+            if (sim.debug_vel) {
+                glBindVertexArray(vao_no_attributes);
+                glUseProgram(debug_velocities_prog);
+                glDrawArraysInstanced(GL_LINES, 0, 2, buf_positions.size());
+            }
 
             glBindVertexArray(vao_no_attributes);
             glUseProgram(debug_walls_prog);
             glDrawArraysInstanced(GL_LINE_LOOP, 0, 4, 2);
-#endif
 
             // IMGUI code
             {
@@ -386,12 +386,12 @@ int main()
                 ImGui::End();
 
                 if (ImGui::Begin("Simulation")) {
-                    constexpr float drag_speed = .1f;
-                    ImGui::DragFloat("Sight range", &sim.boid_sights[0], drag_speed, 0, 0, "%.3f", 0);
-                    ImGui::DragFloat("Avoidance range", &sim.boid_sights[1], drag_speed, 0, sim.boid_sights[0], "%.3f", 0);
-                    ImGui::DragFloat("Cohesion strength", &sim.boid_goal_strengths[0], drag_speed, 0, 0, "%.3f", 0);
-                    ImGui::DragFloat("Alignment strength", &sim.boid_goal_strengths[1], drag_speed, 0, 0, "%.3f", 0);
-                    ImGui::DragFloat("Avoidance strength", &sim.boid_goal_strengths[2], drag_speed, 0, 0, "%.3f", 0);
+                    ImGui::DragFloat("Sight range", &sim.boid_sights[0], .1f, 0, 0, "%.3f", 0);
+                    ImGui::DragFloat("Avoidance range", &sim.boid_sights[1], .1f, 0, sim.boid_sights[0], "%.3f", 0);
+                    ImGui::DragFloat("Cohesion strength", &sim.boid_goal_strengths[0], .01f, 0, 0, "%.3f", 0);
+                    ImGui::DragFloat("Alignment strength", &sim.boid_goal_strengths[1], .01f, 0, 0, "%.3f", 0);
+                    ImGui::DragFloat("Avoidance strength", &sim.boid_goal_strengths[2], .01f, 0, 0, "%.3f", 0);
+                    ImGui::Checkbox("Debug velocity view", &sim.debug_vel);
                 }
                 ImGui::End();
 
